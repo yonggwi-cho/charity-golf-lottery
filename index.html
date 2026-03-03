@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>チャリティゴルフコンペ 抽選管理システム</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background: linear-gradient(135deg, #1a472a 0%, #2d6a4f 50%, #1b4332 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    header {
+      background: rgba(0,0,0,0.4);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 1.8rem; letter-spacing: 0.05em; }
+    header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      padding: 16px 16px 0;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: bold;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      transition: background 0.2s;
+    }
+    .tab-btn.active { background: #fff; color: #2d6a4f; }
+    .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.35); }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 16px 40px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 0 0 12px 12px;
+      padding: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    h2 {
+      font-size: 1.2rem;
+      color: #1b4332;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #2d6a4f;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+    .form-group label { font-size: 0.8rem; color: #555; font-weight: bold; }
+    .form-group input, .form-group select {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: #2d6a4f;
+      box-shadow: 0 0 0 3px rgba(45,106,79,0.15);
+    }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:hover { opacity: 0.88; }
+    .btn-primary { background: #2d6a4f; color: #fff; }
+    .btn-danger  { background: #c0392b; color: #fff; }
+    .btn-warning { background: #e67e22; color: #fff; }
+    .btn-info    { background: #2980b9; color: #fff; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-gray    { background: #888; color: #fff; }
+    .btn-lg { padding: 14px 32px; font-size: 1.1rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: #2d6a4f; color: #fff; padding: 10px 12px; text-align: left; }
+    td { padding: 9px 12px; border-bottom: 1px solid #eee; }
+    tr:hover td { background: #f0f8f4; }
+    .empty-row td { text-align: center; color: #aaa; padding: 24px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .badge-green  { background: #d4edda; color: #155724; }
+    .badge-blue   { background: #cce5ff; color: #004085; }
+    .badge-orange { background: #fff3cd; color: #856404; }
+    .badge-red    { background: #f8d7da; color: #721c24; }
+    .badge-gray   { background: #e2e3e5; color: #383d41; }
+
+    /* 統計カード */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #2d6a4f, #1b4332);
+      color: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 2rem; font-weight: bold; }
+    .stat-card .lbl { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+
+    /* 抽選アニメーション */
+    #lottery-display {
+      text-align: center;
+      margin: 20px 0;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #lottery-number {
+      font-size: 4rem;
+      font-weight: bold;
+      color: #2d6a4f;
+      letter-spacing: 0.1em;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #lottery-number.rolling {
+      animation: roll 0.07s infinite;
+      color: #e67e22;
+    }
+    @keyframes roll {
+      0%   { opacity: 1; }
+      50%  { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+    #lottery-name {
+      font-size: 1.4rem;
+      color: #555;
+      margin-top: 4px;
+      min-height: 30px;
+    }
+    .winner-card {
+      border: 3px solid #f1c40f;
+      border-radius: 12px;
+      padding: 16px 24px;
+      background: #fffde7;
+      display: inline-block;
+      margin: 8px 4px;
+      text-align: center;
+      min-width: 160px;
+    }
+    .winner-card .prize-name { font-size: 0.85rem; color: #777; }
+    .winner-card .winner-num { font-size: 1.8rem; font-weight: bold; color: #2d6a4f; }
+    .winner-card .winner-person { font-size: 1rem; color: #333; margin-top: 2px; }
+
+    .prize-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .results-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    /* ツール系 */
+    .info-box {
+      background: #e8f5e9;
+      border-left: 4px solid #2d6a4f;
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-size: 0.88rem;
+      margin-bottom: 16px;
+      color: #1b4332;
+    }
+    .warn-box {
+      background: #fff8e1;
+      border-left: 4px solid #f39c12;
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-size: 0.88rem;
+      margin-bottom: 16px;
+      color: #7d5a00;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #2d6a4f;
+      margin: 20px 0 10px;
+    }
+
+    .ticket-pool {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      min-height: 60px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .ticket-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 32px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      background: #2d6a4f;
+      color: #fff;
+      cursor: default;
+    }
+    .ticket-chip.used { background: #ccc; color: #888; text-decoration: line-through; }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.3rem; }
+      .tab-btn { padding: 8px 12px; font-size: 0.8rem; }
+      #lottery-number { font-size: 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⛳ チャリティゴルフコンペ 抽選管理システム</h1>
+  <p>参加者管理・チケット管理・抽選・結果確認</p>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('tab-dashboard')">📊 ダッシュボード</button>
+    <button class="tab-btn" onclick="showTab('tab-participants')">👤 参加者管理</button>
+    <button class="tab-btn" onclick="showTab('tab-prizes')">🎁 賞品設定</button>
+    <button class="tab-btn" onclick="showTab('tab-lottery')">🎰 抽選</button>
+    <button class="tab-btn" onclick="showTab('tab-results')">🏆 結果一覧</button>
+  </div>
+
+  <!-- ダッシュボード -->
+  <div id="tab-dashboard" class="card tab-panel active">
+    <h2>📊 ダッシュボード</h2>
+    <div class="stats-grid" id="stats-grid"></div>
+    <div class="section-title">チケットプール（未抽選）</div>
+    <div class="ticket-pool" id="ticket-pool-view"></div>
+    <div style="margin-top:16px; font-size:0.85rem; color:#888;">
+      ※ データはこのブラウザのローカルストレージに保存されます。
+    </div>
+  </div>
+
+  <!-- 参加者管理 -->
+  <div id="tab-participants" class="card tab-panel">
+    <h2>👤 参加者管理</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>氏名 *</label>
+        <input type="text" id="p-name" placeholder="山田 太郎" maxlength="30">
+      </div>
+      <div class="form-group">
+        <label>読み仮名</label>
+        <input type="text" id="p-kana" placeholder="やまだ たろう" maxlength="40">
+      </div>
+      <div class="form-group">
+        <label>所属 / 会社</label>
+        <input type="text" id="p-org" placeholder="〇〇株式会社" maxlength="40">
+      </div>
+      <div class="form-group" style="flex:0 0 auto;">
+        <label>チケット枚数</label>
+        <input type="number" id="p-tickets" value="1" min="1" max="20" style="width:80px;">
+      </div>
+      <div class="form-group" style="flex:0 0 auto; justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="addParticipant()">追加</button>
+      </div>
+    </div>
+
+    <div class="info-box">チケット枚数：参加者に割り当てる抽選チケットの枚数です。枚数が多いほど当選確率が上がります。</div>
+
+    <div style="margin-bottom:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <span style="font-weight:bold; color:#555;">参加者一覧</span>
+      <button class="btn btn-gray" style="font-size:0.78rem; padding:5px 10px;" onclick="exportCSV()">CSVエクスポート</button>
+      <label class="btn btn-gray" style="font-size:0.78rem; padding:5px 10px; cursor:pointer;">
+        CSVインポート
+        <input type="file" accept=".csv" onchange="importCSV(event)" style="display:none;">
+      </label>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table id="participants-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>氏名</th>
+            <th>読み仮名</th>
+            <th>所属</th>
+            <th>チケット</th>
+            <th>チケット番号</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="participants-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 賞品設定 -->
+  <div id="tab-prizes" class="card tab-panel">
+    <h2>🎁 賞品設定</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>賞品名 *</label>
+        <input type="text" id="prize-name" placeholder="1等賞・特別賞など" maxlength="40">
+      </div>
+      <div class="form-group">
+        <label>説明・内容</label>
+        <input type="text" id="prize-desc" placeholder="商品券 10,000円分など" maxlength="60">
+      </div>
+      <div class="form-group" style="flex:0 0 auto;">
+        <label>当選数</label>
+        <input type="number" id="prize-count" value="1" min="1" max="50" style="width:80px;">
+      </div>
+      <div class="form-group" style="flex:0 0 auto; justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="addPrize()">追加</button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table id="prizes-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>賞品名</th>
+            <th>内容</th>
+            <th>当選数</th>
+            <th>状態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="prizes-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 抽選 -->
+  <div id="tab-lottery" class="card tab-panel">
+    <h2>🎰 抽選</h2>
+    <div class="warn-box" id="lottery-warn" style="display:none;"></div>
+
+    <div class="form-row" style="align-items:center;">
+      <div class="form-group">
+        <label>抽選対象賞品</label>
+        <select id="lottery-prize-select" onchange="onPrizeSelectChange()">
+          <option value="">-- 賞品を選択 --</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:0 0 auto; justify-content:flex-end;">
+        <button class="btn btn-success btn-lg" id="draw-btn" onclick="drawLottery()" disabled>🎰 抽選スタート</button>
+      </div>
+    </div>
+
+    <div id="lottery-display">
+      <div id="lottery-number">－</div>
+      <div id="lottery-name"></div>
+    </div>
+
+    <div id="current-winners" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- 結果一覧 -->
+  <div id="tab-results" class="card tab-panel">
+    <h2>🏆 当選結果一覧</h2>
+    <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+      <button class="btn btn-info" onclick="printResults()">🖨 印刷</button>
+      <button class="btn btn-warning" onclick="resetResults()">⚠ 抽選結果をリセット</button>
+      <button class="btn btn-danger" onclick="resetAll()">🗑 全データ削除</button>
+    </div>
+    <div id="results-container"></div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ========== データ管理 ==========
+const LS_KEY = 'charity_golf_v2';
+
+function loadData() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY)) || defaultData();
+  } catch(e) { return defaultData(); }
+}
+function saveData(d) {
+  localStorage.setItem(LS_KEY, JSON.stringify(d));
+}
+function defaultData() {
+  return { participants: [], prizes: [], results: [], ticketCounter: 1 };
+}
+
+let data = loadData();
+
+// ========== タブ切り替え ==========
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = ['tab-dashboard','tab-participants','tab-prizes','tab-lottery','tab-results'].indexOf(id);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  if (id === 'tab-dashboard') renderDashboard();
+  if (id === 'tab-participants') renderParticipants();
+  if (id === 'tab-prizes') renderPrizes();
+  if (id === 'tab-lottery') renderLottery();
+  if (id === 'tab-results') renderResults();
+}
+
+// ========== 参加者 ==========
+function addParticipant() {
+  const name    = document.getElementById('p-name').value.trim();
+  const kana    = document.getElementById('p-kana').value.trim();
+  const org     = document.getElementById('p-org').value.trim();
+  const tickets = parseInt(document.getElementById('p-tickets').value) || 1;
+
+  if (!name) { alert('氏名を入力してください。'); return; }
+
+  const ticketNums = [];
+  for (let i = 0; i < tickets; i++) {
+    ticketNums.push(data.ticketCounter++);
+  }
+
+  data.participants.push({
+    id: Date.now() + Math.random(),
+    name, kana, org,
+    tickets,
+    ticketNums
+  });
+  saveData(data);
+  renderParticipants();
+  renderDashboardQuick();
+
+  document.getElementById('p-name').value = '';
+  document.getElementById('p-kana').value = '';
+  document.getElementById('p-org').value = '';
+  document.getElementById('p-tickets').value = '1';
+  document.getElementById('p-name').focus();
+}
+
+function removeParticipant(id) {
+  if (!confirm('この参加者を削除しますか？')) return;
+  data.participants = data.participants.filter(p => p.id !== id);
+  // 結果からも除去
+  data.results = data.results.filter(r => r.participantId !== id);
+  saveData(data);
+  renderParticipants();
+  renderDashboardQuick();
+}
+
+function renderParticipants() {
+  const tbody = document.getElementById('participants-tbody');
+  if (!data.participants.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">参加者が登録されていません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.participants.map((p, i) => {
+    const used = data.results.filter(r => r.participantId === p.id).map(r => r.ticketNum);
+    const chips = p.ticketNums.map(n =>
+      `<span class="ticket-chip${used.includes(n) ? ' used' : ''}">${n}</span>`
+    ).join('');
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td>${esc(p.kana)}</td>
+      <td>${esc(p.org)}</td>
+      <td><span class="badge badge-green">${p.tickets}枚</span></td>
+      <td style="line-height:2">${chips}</td>
+      <td><button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem;" onclick="removeParticipant(${p.id})">削除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ========== 賞品 ==========
+function addPrize() {
+  const name  = document.getElementById('prize-name').value.trim();
+  const desc  = document.getElementById('prize-desc').value.trim();
+  const count = parseInt(document.getElementById('prize-count').value) || 1;
+
+  if (!name) { alert('賞品名を入力してください。'); return; }
+
+  data.prizes.push({ id: Date.now() + Math.random(), name, desc, count });
+  saveData(data);
+  renderPrizes();
+
+  document.getElementById('prize-name').value = '';
+  document.getElementById('prize-desc').value = '';
+  document.getElementById('prize-count').value = '1';
+  document.getElementById('prize-name').focus();
+}
+
+function removePrize(id) {
+  if (!confirm('この賞品を削除しますか？（関連する抽選結果も削除されます）')) return;
+  data.prizes  = data.prizes.filter(p => p.id !== id);
+  data.results = data.results.filter(r => r.prizeId !== id);
+  saveData(data);
+  renderPrizes();
+}
+
+function renderPrizes() {
+  const tbody = document.getElementById('prizes-tbody');
+  if (!data.prizes.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">賞品が登録されていません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.prizes.map((p, i) => {
+    const drawn = data.results.filter(r => r.prizeId === p.id).length;
+    const statusBadge = drawn >= p.count
+      ? '<span class="badge badge-gray">抽選済み</span>'
+      : drawn > 0
+        ? `<span class="badge badge-orange">${drawn}/${p.count}名 抽選中</span>`
+        : '<span class="badge badge-blue">未抽選</span>';
+    const canDelete = drawn === 0;
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td>${esc(p.desc)}</td>
+      <td>${p.count}名</td>
+      <td>${statusBadge}</td>
+      <td>
+        ${canDelete ? `<button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem;" onclick="removePrize(${p.id})">削除</button>` : '－'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ========== 抽選 ==========
+let lotteryInterval = null;
+let isDrawing = false;
+
+function renderLottery() {
+  const sel = document.getElementById('lottery-prize-select');
+  sel.innerHTML = '<option value="">-- 賞品を選択 --</option>';
+  data.prizes.forEach(p => {
+    const drawn = data.results.filter(r => r.prizeId === p.id).length;
+    const remaining = p.count - drawn;
+    if (remaining > 0) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name}（残り ${remaining}名）`;
+      sel.appendChild(opt);
+    }
+  });
+  onPrizeSelectChange();
+  updateWinnerDisplay();
+}
+
+function onPrizeSelectChange() {
+  const prizeId = document.getElementById('lottery-prize-select').value;
+  const btn = document.getElementById('draw-btn');
+  const warn = document.getElementById('lottery-warn');
+  warn.style.display = 'none';
+
+  if (!prizeId) { btn.disabled = true; return; }
+
+  const pool = getTicketPool();
+  if (!pool.length) {
+    warn.style.display = 'block';
+    warn.textContent = '抽選可能なチケットがありません。参加者を登録してください。';
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = false;
+}
+
+function getTicketPool() {
+  // 全チケットから抽選済みのものを除外
+  const usedTickets = new Set(data.results.map(r => r.ticketNum));
+  const pool = [];
+  data.participants.forEach(p => {
+    p.ticketNums.forEach(n => {
+      if (!usedTickets.has(n)) {
+        pool.push({ num: n, participantId: p.id, participantName: p.name });
+      }
+    });
+  });
+  return pool;
+}
+
+function drawLottery() {
+  if (isDrawing) return;
+  const prizeId = document.getElementById('lottery-prize-select').value;
+  if (!prizeId) return;
+
+  const prize = data.prizes.find(p => p.id == prizeId);
+  const pool = getTicketPool();
+
+  if (!pool.length) {
+    alert('抽選可能なチケットがありません。');
+    return;
+  }
+
+  isDrawing = true;
+  document.getElementById('draw-btn').disabled = true;
+  const numEl  = document.getElementById('lottery-number');
+  const nameEl = document.getElementById('lottery-name');
+  numEl.className = 'rolling';
+  nameEl.textContent = '';
+
+  let count = 0;
+  lotteryInterval = setInterval(() => {
+    const r = pool[Math.floor(Math.random() * pool.length)];
+    numEl.textContent = String(r.num).padStart(3, '0');
+    count++;
+    if (count >= 30) {
+      clearInterval(lotteryInterval);
+      // 当選決定
+      const winner = pool[Math.floor(Math.random() * pool.length)];
+      numEl.className = '';
+      numEl.textContent = String(winner.num).padStart(3, '0');
+      nameEl.textContent = winner.participantName + ' さん';
+
+      data.results.push({
+        id: Date.now(),
+        prizeId: prize.id,
+        prizeName: prize.name,
+        ticketNum: winner.num,
+        participantId: winner.participantId,
+        participantName: winner.participantName,
+        drawnAt: new Date().toLocaleString('ja-JP')
+      });
+      saveData(data);
+
+      isDrawing = false;
+      updateWinnerDisplay();
+      renderLottery(); // セレクトを更新
+      // 連続抽選のため再度有効化
+      const prizeNew = data.prizes.find(p => p.id == prizeId);
+      if (prizeNew) {
+        const drawn = data.results.filter(r => r.prizeId == prizeId).length;
+        if (drawn < prizeNew.count) {
+          document.getElementById('draw-btn').disabled = false;
+        }
+      }
+    }
+  }, 70);
+}
+
+function updateWinnerDisplay() {
+  const prizeId = document.getElementById('lottery-prize-select').value;
+  const el = document.getElementById('current-winners');
+  if (!prizeId) { el.innerHTML = ''; return; }
+
+  const winners = data.results.filter(r => r.prizeId == prizeId);
+  if (!winners.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = '<div class="section-title">今回の当選者</div><div class="results-grid">' +
+    winners.map(w => `
+      <div class="winner-card">
+        <div class="prize-name">${esc(w.prizeName)}</div>
+        <div class="winner-num">${String(w.ticketNum).padStart(3,'0')}</div>
+        <div class="winner-person">${esc(w.participantName)}</div>
+      </div>
+    `).join('') + '</div>';
+}
+
+// ========== 結果一覧 ==========
+function renderResults() {
+  const el = document.getElementById('results-container');
+  if (!data.results.length) {
+    el.innerHTML = '<div class="info-box">まだ抽選結果がありません。</div>';
+    return;
+  }
+  // 賞品ごとにグループ化
+  const byPrize = {};
+  data.results.forEach(r => {
+    if (!byPrize[r.prizeName]) byPrize[r.prizeName] = [];
+    byPrize[r.prizeName].push(r);
+  });
+
+  el.innerHTML = Object.entries(byPrize).map(([prize, winners]) => `
+    <div style="margin-bottom:20px;">
+      <div class="section-title">🎁 ${esc(prize)}</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>順</th><th>チケット番号</th><th>当選者</th><th>所属</th><th>抽選日時</th></tr></thead>
+          <tbody>
+            ${winners.map((w, i) => {
+              const p = data.participants.find(pp => pp.id === w.participantId);
+              return `<tr>
+                <td>${i+1}</td>
+                <td><strong>${String(w.ticketNum).padStart(3,'0')}</strong></td>
+                <td>${esc(w.participantName)}</td>
+                <td>${esc(p ? p.org : '')}</td>
+                <td style="font-size:0.8rem;color:#888;">${esc(w.drawnAt)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ========== ダッシュボード ==========
+function renderDashboard() {
+  renderDashboardQuick();
+}
+
+function renderDashboardQuick() {
+  const totalParticipants = data.participants.length;
+  const totalTickets = data.participants.reduce((s, p) => s + p.tickets, 0);
+  const usedTickets  = data.results.length;
+  const totalPrizes  = data.prizes.length;
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="num">${totalParticipants}</div>
+      <div class="lbl">参加者数</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${totalTickets}</div>
+      <div class="lbl">総チケット数</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${totalTickets - usedTickets}</div>
+      <div class="lbl">残チケット数</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${totalPrizes}</div>
+      <div class="lbl">登録賞品数</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${data.results.length}</div>
+      <div class="lbl">当選者数</div>
+    </div>
+  `;
+
+  // チケットプール
+  const usedSet = new Set(data.results.map(r => r.ticketNum));
+  const allNums = [];
+  data.participants.forEach(p => p.ticketNums.forEach(n => allNums.push(n)));
+  allNums.sort((a,b) => a-b);
+
+  const pool = document.getElementById('ticket-pool-view');
+  if (!allNums.length) {
+    pool.innerHTML = '<span style="color:#aaa; font-size:0.9rem;">チケットがありません</span>';
+  } else {
+    pool.innerHTML = allNums.map(n =>
+      `<span class="ticket-chip${usedSet.has(n) ? ' used' : ''}">${String(n).padStart(3,'0')}</span>`
+    ).join('');
+  }
+}
+
+// ========== CSV ==========
+function exportCSV() {
+  if (!data.participants.length) { alert('参加者がいません。'); return; }
+  const rows = [['氏名', '読み仮名', '所属', 'チケット枚数', 'チケット番号']];
+  data.participants.forEach(p => {
+    rows.push([p.name, p.kana, p.org, p.tickets, p.ticketNums.join(' ')]);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'participants.csv';
+  a.click();
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.replace(/^\uFEFF/, '').split('\n').filter(Boolean);
+    let added = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      const name = (cols[0] || '').trim();
+      if (!name) continue;
+      const kana    = (cols[1] || '').trim();
+      const org     = (cols[2] || '').trim();
+      const tickets = parseInt(cols[3]) || 1;
+      const ticketNums = [];
+      for (let j = 0; j < tickets; j++) ticketNums.push(data.ticketCounter++);
+      data.participants.push({ id: Date.now() + Math.random() + i, name, kana, org, tickets, ticketNums });
+      added++;
+    }
+    saveData(data);
+    renderParticipants();
+    renderDashboardQuick();
+    alert(`${added}名をインポートしました。`);
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ========== リセット ==========
+function resetResults() {
+  if (!confirm('抽選結果をすべて削除します。よろしいですか？\n（参加者・賞品データは残ります）')) return;
+  data.results = [];
+  saveData(data);
+  renderResults();
+  renderDashboardQuick();
+  alert('抽選結果を削除しました。');
+}
+
+function resetAll() {
+  if (!confirm('⚠ 全データ（参加者・賞品・抽選結果）を削除します。\nこの操作は元に戻せません。よろしいですか？')) return;
+  if (!confirm('本当に削除しますか？')) return;
+  data = defaultData();
+  saveData(data);
+  renderParticipants();
+  renderPrizes();
+  renderResults();
+  renderDashboard();
+  alert('全データを削除しました。');
+}
+
+// ========== 印刷 ==========
+function printResults() {
+  window.print();
+}
+
+// ========== ユーティリティ ==========
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ========== 初期化 ==========
+renderDashboard();
+</script>
+</body>
+</html>
