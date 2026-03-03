@@ -313,6 +313,136 @@
       header, .tabs, .card > div:first-child { display: none !important; }
       .card { box-shadow: none; }
     }
+
+    /* ===== Firebase / 設定タブ追加CSS ===== */
+    .tab-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px; height: 18px;
+      padding: 0 4px;
+      background: #c0392b;
+      color: #fff;
+      border-radius: 9px;
+      font-size: 0.65rem;
+      font-weight: bold;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+
+    .fb-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: bold;
+    }
+    .fb-status .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .fb-status.connected    { background: #e8f5e9; color: #155724; }
+    .fb-status.connected .dot { background: #27ae60; }
+    .fb-status.disconnected { background: #f5f5f5; color: #888; }
+    .fb-status.disconnected .dot { background: #ccc; }
+    .fb-status.error        { background: #fde8e8; color: #721c24; }
+    .fb-status.error .dot   { background: #c0392b; }
+
+    .config-field {
+      margin-bottom: 12px;
+    }
+    .config-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    .config-field input, .config-field select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+    .config-field input:focus {
+      outline: none;
+      border-color: #2d6a4f;
+      box-shadow: 0 0 0 3px rgba(45,106,79,0.15);
+    }
+
+    .config-group {
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid #e0e0e0;
+    }
+    .config-group-title {
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #2d6a4f;
+      margin-bottom: 12px;
+    }
+
+    .qr-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+    }
+    .qr-container canvas { border-radius: 8px; }
+    .url-display {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      background: #fff;
+      word-break: break-all;
+      color: #444;
+    }
+
+    /* Firebase受付カード */
+    .fb-reg-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      background: #fff;
+      transition: background 0.15s;
+    }
+    .fb-reg-card:hover { background: #f0f8f4; }
+    .fb-reg-card.imported { opacity: 0.5; }
+    .fb-reg-info { flex: 1; min-width: 160px; }
+    .fb-reg-info .fb-reg-name  { font-weight: bold; font-size: 0.95rem; }
+    .fb-reg-info .fb-reg-sub   { font-size: 0.78rem; color: #777; margin-top: 2px; }
+    .fb-reg-info .fb-reg-tickets { font-size: 0.82rem; color: #2d6a4f; font-weight: bold; margin-top: 4px; }
+    .fb-reg-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+
+    .fb-new-banner {
+      background: linear-gradient(135deg, #e8f5e9, #f0fff4);
+      border: 1px solid #c3e6cb;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -325,10 +455,11 @@
 <div class="container">
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('tab-dashboard')">📊 ダッシュボード</button>
-    <button class="tab-btn" onclick="showTab('tab-participants')">🎟 購入者管理</button>
+    <button class="tab-btn" id="tab-btn-participants" onclick="showTab('tab-participants')">🎟 購入者管理<span class="tab-badge" id="tab-badge-participants" style="display:none;">0</span></button>
     <button class="tab-btn" onclick="showTab('tab-prizes')">🎁 賞品設定</button>
     <button class="tab-btn" onclick="showTab('tab-lottery')">🎰 抽選</button>
     <button class="tab-btn" onclick="showTab('tab-results')">🏆 結果一覧</button>
+    <button class="tab-btn" onclick="showTab('tab-settings')">⚙️ 設定</button>
   </div>
 
   <!-- ダッシュボード -->
@@ -350,6 +481,19 @@
   <!-- 購入者管理 -->
   <div id="tab-participants" class="card tab-panel">
     <h2>🎟 購入者管理</h2>
+
+    <!-- Firebase新着セクション（Firebase接続時のみ表示） -->
+    <div id="fb-incoming-section" style="display:none;">
+      <div class="fb-new-banner">
+        <span style="font-size:1.2rem;">📱</span>
+        <div style="flex:1;">
+          <strong>スマートフォンからの新規登録</strong>
+          <span id="fb-incoming-count" style="margin-left:8px; color:#2d6a4f; font-weight:bold;"></span>
+        </div>
+        <button class="btn btn-success" style="font-size:0.82rem; padding:6px 14px;" onclick="importAllFromFirebase()">一括取り込み</button>
+      </div>
+      <div id="fb-incoming-list" style="margin-bottom:20px;"></div>
+    </div>
     <div class="form-row">
       <div class="form-group" style="flex:0 0 auto; min-width:150px;">
         <label>区分 *</label>
@@ -486,6 +630,110 @@
     <div id="current-winners" style="margin-top:8px;"></div>
   </div>
 
+  <!-- 設定 -->
+  <div id="tab-settings" class="card tab-panel">
+    <h2>⚙️ 設定・Firebase連携</h2>
+
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+      <span style="font-weight:bold;">接続状態：</span>
+      <span id="fb-status-badge" class="fb-status disconnected">
+        <span class="dot"></span>未接続
+      </span>
+      <button class="btn btn-primary" style="padding:7px 16px; font-size:0.85rem;" onclick="connectFirebase()">接続テスト</button>
+      <button class="btn btn-danger"  style="padding:7px 16px; font-size:0.85rem;" onclick="disconnectFirebase()">切断</button>
+    </div>
+
+    <div class="config-group">
+      <div class="config-group-title">🎪 イベント設定</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div class="config-field" style="flex:2; min-width:180px;">
+          <label>イベント名（登録画面タイトル）</label>
+          <input type="text" id="cfg-event-name" placeholder="チャリティゴルフコンペ 2024">
+        </div>
+        <div class="config-field" style="flex:1; min-width:140px;">
+          <label>イベントコード（空欄=コード不要）</label>
+          <input type="text" id="cfg-event-code" placeholder="GOLF2024" maxlength="20"
+                 style="text-transform:uppercase;" autocomplete="off">
+        </div>
+        <div class="config-field" style="flex:0 0 100px;">
+          <label>最大購入枚数</label>
+          <input type="number" id="cfg-max-tickets" value="10" min="1" max="50">
+        </div>
+      </div>
+    </div>
+
+    <div class="config-group">
+      <div class="config-group-title">🔥 Firebase設定（<a href="https://console.firebase.google.com/" target="_blank" rel="noopener" style="color:#2d6a4f;">Firebaseコンソール</a> → プロジェクト設定 → ウェブアプリ より取得）</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div class="config-field" style="flex:1; min-width:200px;">
+          <label>API Key</label>
+          <input type="text" id="cfg-api-key" placeholder="AIzaSy...">
+        </div>
+        <div class="config-field" style="flex:1; min-width:200px;">
+          <label>Auth Domain</label>
+          <input type="text" id="cfg-auth-domain" placeholder="my-project.firebaseapp.com">
+        </div>
+        <div class="config-field" style="flex:1; min-width:220px;">
+          <label>Database URL <span style="color:#c0392b;">*必須</span></label>
+          <input type="text" id="cfg-db-url" placeholder="https://my-project-default-rtdb.firebaseio.com">
+        </div>
+        <div class="config-field" style="flex:1; min-width:180px;">
+          <label>Project ID</label>
+          <input type="text" id="cfg-project-id" placeholder="my-project">
+        </div>
+        <div class="config-field" style="flex:1; min-width:180px;">
+          <label>Storage Bucket</label>
+          <input type="text" id="cfg-storage-bucket" placeholder="my-project.appspot.com">
+        </div>
+        <div class="config-field" style="flex:1; min-width:180px;">
+          <label>Messaging Sender ID</label>
+          <input type="text" id="cfg-messaging-sender-id" placeholder="123456789">
+        </div>
+        <div class="config-field" style="flex:1; min-width:180px;">
+          <label>App ID</label>
+          <input type="text" id="cfg-app-id" placeholder="1:123456789:web:...">
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <button class="btn btn-primary" onclick="saveAndConnect()">保存して接続</button>
+        <button class="btn btn-gray" onclick="clearFbConfig()">設定をクリア</button>
+      </div>
+      <div id="cfg-error" class="warn-box" style="display:none; margin-top:12px; margin-bottom:0;"></div>
+    </div>
+
+    <div class="config-group" id="register-url-section" style="display:none;">
+      <div class="config-group-title">📱 スマートフォン登録URL</div>
+      <div class="info-box" style="margin-bottom:12px;">
+        このURLをQRコードや短縮URLで参加者に配布してください。参加者はスマートフォンからチケットを購入登録できます。
+      </div>
+      <div class="qr-container">
+        <canvas id="qr-canvas"></canvas>
+        <div class="url-display" id="register-url-display">—</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+          <button class="btn btn-info" onclick="copyRegisterUrl()">URLをコピー</button>
+          <button class="btn btn-gray" onclick="openRegisterUrl()">別タブで開く</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-group">
+      <div class="config-group-title">📋 Firebaseセキュリティルール（コピーしてコンソールに貼り付け）</div>
+      <pre style="background:#1e1e1e; color:#d4d4d4; padding:14px; border-radius:8px; font-size:0.82rem; overflow-x:auto; line-height:1.6;">{
+  "rules": {
+    "counter": {
+      ".read": true,
+      ".write": true
+    },
+    "registrations": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}</pre>
+      <div style="font-size:0.8rem; color:#888; margin-top:8px;">※ 本番運用前に必要に応じてルールを強化してください。</div>
+    </div>
+  </div>
+
   <!-- 結果一覧 -->
   <div id="tab-results" class="card tab-panel">
     <h2>🏆 当選結果一覧</h2>
@@ -535,7 +783,7 @@ let data = loadData();
 let buyerFilter = 'all'; // 'all' | 'player' | 'buyer'
 
 // ========== タブ切り替え ==========
-const TAB_IDS = ['tab-dashboard','tab-participants','tab-prizes','tab-lottery','tab-results'];
+const TAB_IDS = ['tab-dashboard','tab-participants','tab-prizes','tab-lottery','tab-results','tab-settings'];
 
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -584,8 +832,8 @@ function addParticipant() {
 
 function removeParticipant(id) {
   if (!confirm('この購入者を削除しますか？\n（関連する当選結果も削除されます）')) return;
-  data.participants = data.participants.filter(p => p.id !== id);
-  data.results      = data.results.filter(r => r.participantId !== id);
+  data.participants = data.participants.filter(p => String(p.id) !== String(id));
+  data.results      = data.results.filter(r => String(r.participantId) !== String(id));
   saveData(data);
   renderParticipants();
   renderDashboardQuick();
@@ -627,7 +875,7 @@ function renderParticipants() {
       <td>${esc(p.org)}</td>
       <td><span class="badge badge-green">${p.tickets}枚</span></td>
       <td style="line-height:2">${chips}</td>
-      <td><button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem;" onclick="removeParticipant(${p.id})">削除</button></td>
+      <td><button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem;" onclick="removeParticipant('${String(p.id)}')">削除</button></td>
     </tr>`;
   }).join('');
 }
@@ -1043,6 +1291,336 @@ function esc(s) {
 
 // ========== 初期化 ==========
 renderDashboard();
+</script>
+
+<!-- Firebase SDK (compat mode) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<!-- QRコード生成ライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+<script>
+// ========== Firebase設定ストレージキー ==========
+const FB_CFG_KEY = 'charity_golf_fb_config';
+const FB_IMPORTED_KEY = 'charity_golf_fb_imported';
+
+let fbApp = null;
+let fbDB  = null;
+let fbListener = null;
+let fbImportedIds = new Set(JSON.parse(localStorage.getItem(FB_IMPORTED_KEY) || '[]'));
+let fbPendingRegs = []; // Firebase新着データキャッシュ
+
+// ========== 設定の読み書き ==========
+function loadFbConfig() {
+  try { return JSON.parse(localStorage.getItem(FB_CFG_KEY)) || {}; } catch(e) { return {}; }
+}
+function saveFbConfigToStorage(cfg) {
+  localStorage.setItem(FB_CFG_KEY, JSON.stringify(cfg));
+}
+function saveImportedIds() {
+  localStorage.setItem(FB_IMPORTED_KEY, JSON.stringify([...fbImportedIds]));
+}
+
+// 設定フォームを読み込む
+function loadConfigForm() {
+  const cfg = loadFbConfig();
+  const fc = cfg.firebaseConfig || {};
+  document.getElementById('cfg-api-key').value            = fc.apiKey            || '';
+  document.getElementById('cfg-auth-domain').value        = fc.authDomain        || '';
+  document.getElementById('cfg-db-url').value             = fc.databaseURL        || '';
+  document.getElementById('cfg-project-id').value         = fc.projectId         || '';
+  document.getElementById('cfg-storage-bucket').value     = fc.storageBucket     || '';
+  document.getElementById('cfg-messaging-sender-id').value= fc.messagingSenderId  || '';
+  document.getElementById('cfg-app-id').value             = fc.appId             || '';
+  document.getElementById('cfg-event-name').value         = cfg.eventName        || '';
+  document.getElementById('cfg-event-code').value         = cfg.eventCode        || '';
+  document.getElementById('cfg-max-tickets').value        = cfg.maxTickets       || 10;
+}
+
+// フォームから設定を収集
+function collectConfigFromForm() {
+  return {
+    firebaseConfig: {
+      apiKey:            document.getElementById('cfg-api-key').value.trim(),
+      authDomain:        document.getElementById('cfg-auth-domain').value.trim(),
+      databaseURL:        document.getElementById('cfg-db-url').value.trim(),
+      projectId:         document.getElementById('cfg-project-id').value.trim(),
+      storageBucket:     document.getElementById('cfg-storage-bucket').value.trim(),
+      messagingSenderId:  document.getElementById('cfg-messaging-sender-id').value.trim(),
+      appId:             document.getElementById('cfg-app-id').value.trim(),
+    },
+    eventName:    document.getElementById('cfg-event-name').value.trim() || 'チャリティゴルフコンペ',
+    eventCode:    document.getElementById('cfg-event-code').value.trim().toUpperCase() || null,
+    requireCode:  !!document.getElementById('cfg-event-code').value.trim(),
+    maxTickets:   parseInt(document.getElementById('cfg-max-tickets').value) || 10,
+  };
+}
+
+// ========== Firebase接続 ==========
+function setFbStatus(state, msg) {
+  const el = document.getElementById('fb-status-badge');
+  el.className = 'fb-status ' + state;
+  el.innerHTML = `<span class="dot"></span>${msg}`;
+}
+
+function saveAndConnect() {
+  const cfg = collectConfigFromForm();
+  if (!cfg.firebaseConfig.databaseURL) {
+    const errEl = document.getElementById('cfg-error');
+    errEl.style.display = 'block';
+    errEl.textContent = 'Database URLは必須です。Firebase Realtime Database を有効化してURLを入力してください。';
+    return;
+  }
+  document.getElementById('cfg-error').style.display = 'none';
+  saveFbConfigToStorage(cfg);
+  connectFirebase();
+}
+
+function connectFirebase() {
+  const cfg = loadFbConfig();
+  if (!cfg.firebaseConfig || !cfg.firebaseConfig.databaseURL) {
+    setFbStatus('error', '設定未完了');
+    document.getElementById('register-url-section').style.display = 'none';
+    return;
+  }
+
+  // 既存アプリを削除して再接続
+  if (fbListener && fbDB) {
+    try { fbDB.ref('registrations').off(); } catch(e) {}
+  }
+  try {
+    const existing = firebase.apps.find(a => a.name === 'admin-app');
+    if (existing) existing.delete();
+  } catch(e) {}
+
+  setFbStatus('disconnected', '接続中...');
+
+  try {
+    fbApp = firebase.initializeApp(cfg.firebaseConfig, 'admin-app');
+    fbDB  = firebase.database(fbApp);
+
+    // 接続確認
+    fbDB.ref('.info/connected').on('value', snap => {
+      if (snap.val() === true) {
+        setFbStatus('connected', '接続中');
+        showRegisterUrl(cfg);
+      } else {
+        setFbStatus('error', '切断');
+      }
+    });
+
+    // 新着登録リスナー
+    startFbListener();
+
+  } catch(e) {
+    setFbStatus('error', 'エラー: ' + e.message);
+    const errEl = document.getElementById('cfg-error');
+    errEl.style.display = 'block';
+    errEl.textContent = 'Firebase接続エラー: ' + e.message;
+  }
+}
+
+function disconnectFirebase() {
+  if (fbDB) {
+    try { fbDB.ref('registrations').off(); } catch(e) {}
+    try { fbDB.ref('.info/connected').off(); } catch(e) {}
+  }
+  if (fbApp) {
+    try { fbApp.delete(); } catch(e) {}
+    fbApp = null;
+    fbDB  = null;
+  }
+  setFbStatus('disconnected', '未接続');
+  document.getElementById('register-url-section').style.display = 'none';
+  document.getElementById('fb-incoming-section').style.display  = 'none';
+}
+
+function clearFbConfig() {
+  if (!confirm('Firebase設定を削除しますか？')) return;
+  localStorage.removeItem(FB_CFG_KEY);
+  disconnectFirebase();
+  loadConfigForm();
+}
+
+// ========== リアルタイムリスナー ==========
+function startFbListener() {
+  if (!fbDB) return;
+  fbDB.ref('registrations').on('value', snap => {
+    fbPendingRegs = [];
+    snap.forEach(child => {
+      fbPendingRegs.push({ fbKey: child.key, ...child.val() });
+    });
+    renderFbIncoming();
+    updateFbBadge();
+  }, err => {
+    console.warn('Firebase listener error:', err);
+    setFbStatus('error', 'データ取得エラー');
+  });
+}
+
+function renderFbIncoming() {
+  const section = document.getElementById('fb-incoming-section');
+  const list    = document.getElementById('fb-incoming-list');
+  const count   = document.getElementById('fb-incoming-count');
+
+  if (!fbPendingRegs.length) {
+    section.style.display = 'none';
+    return;
+  }
+
+  const newRegs = fbPendingRegs.filter(r => !fbImportedIds.has(r.fbKey));
+  section.style.display = 'block';
+
+  count.textContent = newRegs.length
+    ? `（未取り込み ${newRegs.length}件）`
+    : '（すべて取り込み済み）';
+
+  list.innerHTML = fbPendingRegs.slice().reverse().map(r => {
+    const imported  = fbImportedIds.has(r.fbKey);
+    const typeLabel = r.type === 'buyer' ? '外部購入者' : 'コンペ参加者';
+    const typeBadgeHtml = r.type === 'buyer'
+      ? '<span class="badge badge-purple">外部購入者</span>'
+      : '<span class="badge badge-teal">コンペ参加者</span>';
+    const nums = (r.ticketNums || []).map(n => String(n).padStart(3,'0')).join(' · ');
+    const date = r.registeredAt ? new Date(r.registeredAt).toLocaleString('ja-JP') : '';
+
+    return `<div class="fb-reg-card${imported ? ' imported' : ''}">
+      <div class="fb-reg-info">
+        <div class="fb-reg-name">${esc(r.name)} ${typeBadgeHtml}</div>
+        <div class="fb-reg-sub">${esc(r.kana || '')}${r.org ? ' / '+esc(r.org) : ''}　<span style="color:#aaa;">${date}</span></div>
+        <div class="fb-reg-tickets">🎟 ${nums} （${r.ticketCount}枚）</div>
+      </div>
+      <div class="fb-reg-actions">
+        ${imported
+          ? '<span class="badge badge-gray">取り込み済み</span>'
+          : `<button class="btn btn-success" style="font-size:0.8rem; padding:6px 12px;"
+               onclick="importOneFromFirebase('${r.fbKey}')">取り込む</button>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateFbBadge() {
+  const newCount = fbPendingRegs.filter(r => !fbImportedIds.has(r.fbKey)).length;
+  const badge = document.getElementById('tab-badge-participants');
+  if (newCount > 0) {
+    badge.style.display = 'inline-flex';
+    badge.textContent   = newCount;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ========== Firebase → ローカル取り込み ==========
+function importOneFromFirebase(fbKey) {
+  const reg = fbPendingRegs.find(r => r.fbKey === fbKey);
+  if (!reg) return;
+  doImport(reg);
+  fbImportedIds.add(fbKey);
+  saveImportedIds();
+  renderFbIncoming();
+  updateFbBadge();
+  renderParticipants();
+  renderDashboardQuick();
+}
+
+function importAllFromFirebase() {
+  const newRegs = fbPendingRegs.filter(r => !fbImportedIds.has(r.fbKey));
+  if (!newRegs.length) { alert('取り込むデータがありません。'); return; }
+  newRegs.forEach(reg => {
+    doImport(reg);
+    fbImportedIds.add(reg.fbKey);
+  });
+  saveImportedIds();
+  renderFbIncoming();
+  updateFbBadge();
+  renderParticipants();
+  renderDashboardQuick();
+  alert(`${newRegs.length}件を取り込みました。`);
+}
+
+function doImport(reg) {
+  // Firebase登録のticketNumsをそのまま使用（番号はFirebase側で採番済み）
+  const ticketNums = reg.ticketNums || [];
+
+  // ticketCounterをFirebase採番値に合わせて更新
+  const maxNum = ticketNums.length ? Math.max(...ticketNums) : 0;
+  if (maxNum >= data.ticketCounter) data.ticketCounter = maxNum + 1;
+
+  // 重複チェック（同じFirebase登録が既に取り込まれていないか番号で確認）
+  const existingNums = new Set(data.participants.flatMap(p => p.ticketNums));
+  const conflicting  = ticketNums.some(n => existingNums.has(n));
+  if (conflicting) {
+    console.warn('Duplicate ticket numbers detected for', reg.name, '- skipping');
+    return;
+  }
+
+  data.participants.push({
+    id:        'fb_' + reg.fbKey,
+    type:      reg.type || 'player',
+    name:      reg.name || '',
+    kana:      reg.kana || '',
+    org:       reg.org  || '',
+    tickets:   reg.ticketCount || ticketNums.length,
+    ticketNums,
+    source:    'firebase',
+  });
+  saveData(data);
+}
+
+// ========== 登録URLとQR生成 ==========
+function showRegisterUrl(cfg) {
+  const urlSection = document.getElementById('register-url-section');
+  const encoded = btoa(JSON.stringify(cfg));
+  const base = location.href.replace('index.html', '').replace(/\?.*/, '').replace(/#.*/, '');
+  const url  = base + 'register.html#' + encodeURIComponent(encoded);
+
+  document.getElementById('register-url-display').textContent = url;
+  urlSection.style.display = 'block';
+  window._registerUrl = url;
+
+  const canvas = document.getElementById('qr-canvas');
+  if (typeof QRCode !== 'undefined') {
+    QRCode.toCanvas(canvas, url, { width: 200, margin: 2 }, err => {
+      if (err) console.warn('QR error:', err);
+    });
+  }
+}
+
+function copyRegisterUrl() {
+  const url = window._registerUrl || document.getElementById('register-url-display').textContent;
+  if (!url || url === '—') return;
+  navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました'));
+}
+
+function openRegisterUrl() {
+  const url = window._registerUrl || document.getElementById('register-url-display').textContent;
+  if (!url || url === '—') return;
+  window.open(url, '_blank');
+}
+
+// ========== 設定タブ表示時の初期化 ==========
+const _origShowTab = showTab;
+// showTabをオーバーライドして設定タブ表示時に設定フォームをロード
+function showTab(id) {
+  _origShowTab(id);
+  if (id === 'tab-settings') {
+    loadConfigForm();
+  }
+  if (id === 'tab-participants') {
+    renderFbIncoming();
+  }
+}
+
+// ========== 起動時にFirebase自動接続 ==========
+(function autoConnect() {
+  const cfg = loadFbConfig();
+  if (cfg.firebaseConfig && cfg.firebaseConfig.databaseURL) {
+    connectFirebase();
+  }
+})();
 </script>
 </body>
 </html>

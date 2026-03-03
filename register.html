@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>抽選チケット 購入登録</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #2d6a4f;
+      --dark:  #1b4332;
+      --purple: #7b2d8b;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background: linear-gradient(160deg, #1a472a 0%, #2d6a4f 60%, #1b4332 100%);
+      min-height: 100vh;
+      color: #333;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* ===== ヘッダー ===== */
+    .page-header {
+      text-align: center;
+      padding: 32px 20px 20px;
+      color: #fff;
+    }
+    .page-header .icon { font-size: 3rem; line-height: 1; }
+    .page-header h1  { font-size: 1.5rem; margin-top: 8px; letter-spacing: 0.04em; }
+    .page-header p   { font-size: 0.85rem; opacity: 0.8; margin-top: 6px; }
+
+    /* ===== カード ===== */
+    .card {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 28px 20px 40px;
+      min-height: calc(100vh - 180px);
+    }
+
+    /* ===== フォーム ===== */
+    .field {
+      margin-bottom: 20px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+    .field label .req {
+      color: #c0392b;
+      margin-left: 4px;
+      font-size: 0.85em;
+    }
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      color: #333;
+      appearance: none;
+      -webkit-appearance: none;
+      background: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus,
+    .field select:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 4px rgba(45,106,79,0.12);
+    }
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+
+    /* 種別セレクター */
+    .type-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .type-btn {
+      padding: 16px 8px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .type-btn .type-icon { font-size: 1.6rem; display: block; margin-bottom: 4px; }
+    .type-btn .type-label { font-weight: bold; color: #444; font-size: 0.85rem; }
+    .type-btn .type-desc  { font-size: 0.72rem; color: #888; margin-top: 2px; }
+    .type-btn.selected-player { border-color: var(--green); background: #e8f5e9; }
+    .type-btn.selected-buyer  { border-color: var(--purple); background: #f3e8f7; }
+    .type-btn.selected-player .type-label { color: var(--green); }
+    .type-btn.selected-buyer  .type-label { color: var(--purple); }
+
+    /* チケット枚数 */
+    .ticket-counter {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .cnt-btn {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      background: #fff;
+      color: var(--green);
+      font-size: 1.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .cnt-btn:active { background: var(--green); color: #fff; }
+    .cnt-btn:disabled { border-color: #ccc; color: #ccc; pointer-events: none; }
+    .cnt-num {
+      flex: 1;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--green);
+    }
+    .cnt-hint { font-size: 0.75rem; color: #999; margin-top: 4px; text-align: center; }
+
+    /* 送信ボタン */
+    .submit-btn {
+      width: 100%;
+      padding: 18px;
+      background: var(--green);
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-size: 1.15rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+      letter-spacing: 0.04em;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .submit-btn:active { transform: scale(0.98); opacity: 0.9; }
+    .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+    .submit-btn.loading { opacity: 0.7; pointer-events: none; }
+
+    /* エラー */
+    .err-msg {
+      color: #c0392b;
+      font-size: 0.82rem;
+      margin-top: 6px;
+      display: none;
+    }
+    .err-msg.show { display: block; }
+
+    /* ===== 確認画面 ===== */
+    #screen-confirm {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .confirm-icon { font-size: 4rem; margin-bottom: 12px; }
+    .confirm-title {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: var(--green);
+      margin-bottom: 8px;
+    }
+    .confirm-sub  { font-size: 0.9rem; color: #666; margin-bottom: 24px; }
+    .ticket-result {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--green), var(--dark));
+      color: #fff;
+      border-radius: 16px;
+      padding: 20px 32px;
+      margin-bottom: 24px;
+      min-width: 200px;
+    }
+    .ticket-result .lbl { font-size: 0.8rem; opacity: 0.85; }
+    .ticket-result .nums {
+      font-size: 2.2rem;
+      font-weight: bold;
+      letter-spacing: 0.12em;
+      margin-top: 4px;
+    }
+    .ticket-result .nums.buyer-style { color: #e8b4ff; }
+    .confirm-info {
+      background: #f5f5f5;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: left;
+      font-size: 0.88rem;
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+    .confirm-info strong { color: var(--green); }
+    .back-btn {
+      width: 100%;
+      padding: 14px;
+      background: #fff;
+      border: 2px solid var(--green);
+      color: var(--green);
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* ===== セットアップ必要画面 ===== */
+    #screen-setup-needed {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .setup-icon { font-size: 3rem; margin-bottom: 12px; }
+    .setup-title { font-size: 1.2rem; font-weight: bold; color: #e67e22; margin-bottom: 8px; }
+    .setup-msg { font-size: 0.88rem; color: #666; line-height: 1.7; }
+
+    /* ===== エラー画面 ===== */
+    #screen-error {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .error-icon  { font-size: 3rem; margin-bottom: 12px; }
+    .error-title { font-size: 1.2rem; font-weight: bold; color: #c0392b; margin-bottom: 8px; }
+    .error-msg   { font-size: 0.85rem; color: #666; line-height: 1.7; margin-bottom: 20px; }
+
+    /* ===== ローディング ===== */
+    .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== イベントコード ===== */
+    .event-code-section {
+      background: #f0f8f4;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid #c3e6cb;
+    }
+    .event-code-section label { color: var(--green); font-weight: bold; font-size: 0.85rem; }
+    .event-code-section input {
+      margin-top: 8px;
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #c3e6cb;
+      border-radius: 10px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .event-code-section input:focus {
+      outline: none;
+      border-color: var(--green);
+    }
+    .event-code-hint { font-size: 0.75rem; color: #888; margin-top: 6px; text-align: center; }
+
+    /* ===== 区切り ===== */
+    .divider { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+
+    @media (max-width: 400px) {
+      .card { padding: 24px 16px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="icon">🎟</div>
+  <h1>抽選チケット 購入登録</h1>
+  <p id="event-name-header">チャリティゴルフコンペ</p>
+</div>
+
+<div class="card">
+
+  <!-- ===== セットアップ未設定 ===== -->
+  <div id="screen-setup-needed">
+    <div class="setup-icon">⚙️</div>
+    <div class="setup-title">設定が必要です</div>
+    <div class="setup-msg">
+      管理者にご連絡ください。<br>
+      登録用URLが正しく共有されていない可能性があります。<br><br>
+      管理者の方は <strong>index.html</strong> の「⚙️ 設定」タブから<br>
+      登録URLを生成してください。
+    </div>
+  </div>
+
+  <!-- ===== エラー ===== -->
+  <div id="screen-error">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title">接続エラー</div>
+    <div class="error-msg" id="error-msg-text">データベースへの接続に失敗しました。</div>
+    <button class="back-btn" onclick="location.reload()">再試行</button>
+  </div>
+
+  <!-- ===== 登録フォーム ===== -->
+  <div id="screen-form">
+
+    <!-- イベントコード（設定されている場合に表示） -->
+    <div class="event-code-section" id="event-code-section" style="display:none;">
+      <label>イベントコード（管理者より通知）</label>
+      <input type="text" id="event-code-input" placeholder="GOLF2024" maxlength="20"
+             autocomplete="off" autocapitalize="characters">
+      <div class="event-code-hint">主催者から案内されたコードを入力してください</div>
+      <div class="err-msg" id="err-event-code">コードが正しくありません</div>
+    </div>
+
+    <!-- 区分 -->
+    <div class="field">
+      <label>区分<span class="req">必須</span></label>
+      <div class="type-selector">
+        <button type="button" class="type-btn selected-player" onclick="selectType('player')" id="btn-player">
+          <span class="type-icon">⛳</span>
+          <span class="type-label">コンペ参加者</span>
+          <span class="type-desc">当日ゴルフに参加</span>
+        </button>
+        <button type="button" class="type-btn" onclick="selectType('buyer')" id="btn-buyer">
+          <span class="type-icon">🎟</span>
+          <span class="type-label">外部購入者</span>
+          <span class="type-desc">チケット購入のみ</span>
+        </button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 氏名 -->
+    <div class="field">
+      <label>お名前<span class="req">必須</span></label>
+      <input type="text" id="f-name" placeholder="山田 太郎"
+             maxlength="30" autocomplete="name" inputmode="text">
+      <div class="err-msg" id="err-name">お名前を入力してください</div>
+    </div>
+
+    <!-- 読み仮名 -->
+    <div class="field">
+      <label>読み仮名</label>
+      <input type="text" id="f-kana" placeholder="やまだ たろう"
+             maxlength="40" autocomplete="off" inputmode="text">
+    </div>
+
+    <!-- 所属 -->
+    <div class="field">
+      <label>所属 / 会社</label>
+      <input type="text" id="f-org" placeholder="〇〇株式会社"
+             maxlength="40" autocomplete="organization" inputmode="text">
+    </div>
+
+    <hr class="divider">
+
+    <!-- チケット枚数 -->
+    <div class="field">
+      <label>購入枚数<span class="req">必須</span></label>
+      <div class="ticket-counter">
+        <button class="cnt-btn" id="cnt-minus" onclick="changeCount(-1)" disabled>−</button>
+        <div class="cnt-num" id="cnt-display">1</div>
+        <button class="cnt-btn" id="cnt-plus"  onclick="changeCount(+1)">＋</button>
+      </div>
+      <div class="cnt-hint">1〜<span id="max-tickets-hint">10</span>枚まで購入できます</div>
+    </div>
+
+    <!-- 送信 -->
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()">
+      登録する
+    </button>
+    <div class="err-msg" id="err-submit" style="text-align:center;margin-top:10px;"></div>
+
+  </div><!-- /screen-form -->
+
+  <!-- ===== 確認画面 ===== -->
+  <div id="screen-confirm">
+    <div class="confirm-icon">🎉</div>
+    <div class="confirm-title">登録完了！</div>
+    <div class="confirm-sub">抽選チケットが発行されました</div>
+
+    <div class="ticket-result" id="ticket-result-block">
+      <div class="lbl">あなたのチケット番号</div>
+      <div class="nums" id="confirm-nums">—</div>
+    </div>
+
+    <div class="confirm-info" id="confirm-info"></div>
+
+    <button class="back-btn" onclick="resetForm()">続けて登録する</button>
+  </div>
+
+</div><!-- /card -->
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getDatabase, ref, push, runTransaction, get }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+// ==========================================
+// Firebase設定（管理者が生成した登録URLから自動取得）
+// ==========================================
+let firebaseApp = null;
+let db = null;
+let fbConfig = null;
+let eventCode = null;    // null = コード不要, 'XXXX' = 要コード確認
+let eventCodeRequired = false;
+let maxTickets = 10;
+let selectedType = 'player';
+let ticketCount = 1;
+
+// URLハッシュから設定を読み込む
+function loadConfigFromHash() {
+  try {
+    const hash = location.hash.slice(1);
+    if (!hash) return null;
+    const json = atob(decodeURIComponent(hash));
+    return JSON.parse(json);
+  } catch(e) { return null; }
+}
+
+// 初期化
+function init() {
+  const cfg = loadConfigFromHash();
+
+  if (!cfg || !cfg.firebaseConfig || !cfg.firebaseConfig.databaseURL) {
+    // 設定がない → セットアップ画面
+    showScreen('setup-needed');
+    return;
+  }
+
+  fbConfig          = cfg.firebaseConfig;
+  eventCode         = cfg.eventCode || null;
+  eventCodeRequired = cfg.requireCode === true;
+  maxTickets        = cfg.maxTickets || 10;
+
+  document.getElementById('max-tickets-hint').textContent = maxTickets;
+
+  if (cfg.eventName) {
+    document.getElementById('event-name-header').textContent = cfg.eventName;
+    document.title = cfg.eventName + ' 抽選チケット登録';
+  }
+
+  // Firebaseイベントコード入力欄の表示制御
+  if (eventCodeRequired) {
+    document.getElementById('event-code-section').style.display = 'block';
+  }
+
+  try {
+    firebaseApp = initializeApp(fbConfig, 'register-app');
+    db = getDatabase(firebaseApp);
+    showScreen('form');
+  } catch(e) {
+    showError('Firebase初期化に失敗しました: ' + e.message);
+  }
+}
+
+// 画面切り替え
+window.showScreen = function(name) {
+  ['screen-form','screen-confirm','screen-setup-needed','screen-error'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('screen-' + name).style.display = 'block';
+};
+
+function showError(msg) {
+  document.getElementById('error-msg-text').textContent = msg;
+  showScreen('error');
+}
+
+// 区分選択
+window.selectType = function(type) {
+  selectedType = type;
+  document.getElementById('btn-player').className = 'type-btn' + (type === 'player' ? ' selected-player' : '');
+  document.getElementById('btn-buyer').className  = 'type-btn' + (type === 'buyer'  ? ' selected-buyer'  : '');
+};
+
+// 枚数カウンター
+window.changeCount = function(delta) {
+  ticketCount = Math.max(1, Math.min(maxTickets, ticketCount + delta));
+  document.getElementById('cnt-display').textContent = ticketCount;
+  document.getElementById('cnt-minus').disabled = ticketCount <= 1;
+  document.getElementById('cnt-plus').disabled  = ticketCount >= maxTickets;
+};
+
+// フォーム送信
+window.submitForm = async function() {
+  // バリデーション
+  let valid = true;
+
+  if (eventCodeRequired) {
+    const inputCode = document.getElementById('event-code-input').value.trim().toUpperCase();
+    if (inputCode !== (eventCode || '').toUpperCase()) {
+      document.getElementById('err-event-code').classList.add('show');
+      valid = false;
+    } else {
+      document.getElementById('err-event-code').classList.remove('show');
+    }
+  }
+
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) {
+    document.getElementById('err-name').classList.add('show');
+    valid = false;
+  } else {
+    document.getElementById('err-name').classList.remove('show');
+  }
+
+  if (!valid) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>登録中...';
+  document.getElementById('err-submit').classList.remove('show');
+
+  const kana = document.getElementById('f-kana').value.trim();
+  const org  = document.getElementById('f-org').value.trim();
+
+  try {
+    // チケット番号をアトミックに割り当て
+    const counterRef = ref(db, 'counter');
+    let assignedNums = [];
+
+    await runTransaction(counterRef, (current) => {
+      const start = (current || 0) + 1;
+      assignedNums = [];
+      for (let i = 0; i < ticketCount; i++) assignedNums.push(start + i);
+      return start + ticketCount - 1;
+    });
+
+    // 登録データをFirebaseに書き込み
+    const regRef = ref(db, 'registrations');
+    await push(regRef, {
+      type: selectedType,
+      name,
+      kana,
+      org,
+      ticketCount,
+      ticketNums: assignedNums,
+      registeredAt: new Date().toISOString(),
+      source: 'self'  // self = 自己登録, admin = 管理者入力
+    });
+
+    // 確認画面に遷移
+    showConfirm({ name, kana, org, type: selectedType, ticketNums: assignedNums });
+
+  } catch(e) {
+    document.getElementById('err-submit').textContent = '送信に失敗しました。もう一度お試しください。';
+    document.getElementById('err-submit').classList.add('show');
+    btn.disabled = false;
+    btn.innerHTML = '登録する';
+  }
+};
+
+function showConfirm({ name, kana, org, type, ticketNums }) {
+  const numsEl = document.getElementById('confirm-nums');
+  numsEl.textContent = ticketNums.map(n => String(n).padStart(3,'0')).join(' · ');
+  if (type === 'buyer') numsEl.classList.add('buyer-style');
+  else numsEl.classList.remove('buyer-style');
+
+  const typeLabel = type === 'buyer' ? '外部購入者' : 'コンペ参加者';
+  document.getElementById('confirm-info').innerHTML = `
+    <strong>氏名</strong>　${esc(name)}${kana ? `（${esc(kana)}）` : ''}<br>
+    ${org ? `<strong>所属</strong>　${esc(org)}<br>` : ''}
+    <strong>区分</strong>　${typeLabel}<br>
+    <strong>購入枚数</strong>　${ticketNums.length}枚
+  `;
+  showScreen('confirm');
+}
+
+// フォームリセット
+window.resetForm = function() {
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-kana').value = '';
+  document.getElementById('f-org').value  = '';
+  ticketCount = 1;
+  document.getElementById('cnt-display').textContent = '1';
+  document.getElementById('cnt-minus').disabled = true;
+  document.getElementById('cnt-plus').disabled  = false;
+  selectType('player');
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = false;
+  btn.innerHTML = '登録する';
+  showScreen('form');
+};
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 起動
+init();
+</script>
+</body>
+</html>
