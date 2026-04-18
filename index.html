@@ -459,6 +459,7 @@
     <button class="tab-btn" onclick="showTab('tab-prizes')">🎁 賞品設定</button>
     <button class="tab-btn" onclick="showTab('tab-lottery')">🎰 抽選</button>
     <button class="tab-btn" onclick="showTab('tab-results')">🏆 結果一覧</button>
+    <button class="tab-btn" onclick="showTab('tab-sales')">📋 売上サマリー</button>
     <button class="tab-btn" onclick="showTab('tab-settings')">⚙️ 設定</button>
   </div>
 
@@ -745,6 +746,78 @@
     <div id="results-container"></div>
   </div>
 
+  <!-- 売上サマリー -->
+  <div id="tab-sales" class="card tab-panel">
+    <h2>📋 チケット売上サマリー</h2>
+
+    <div class="info-box">
+      担当者別のチケット売上を管理します。テキスト形式（例：<code style="background:#c8e6c9;padding:1px 5px;border-radius:3px;">13+8+町田(28)+ニョメン5</code>）をそのまま貼り付けて一括入力できます。
+    </div>
+
+    <!-- 一括テキスト入力 -->
+    <div class="section-title">一括テキスト入力</div>
+    <div style="font-size:0.82rem; color:#666; margin-bottom:8px;">
+      「+」で区切り、担当者名は数字の直前または括弧内に記入。例：<code style="background:#f0f0f0;padding:1px 5px;border-radius:3px;">13+8+1+1+1+34+町田(28)+ニョメン5</code>
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:20px; align-items:center; flex-wrap:wrap;">
+      <input type="text" id="sales-bulk-input"
+             placeholder="13+8+1+1+1+34+町田(28)+ニョメン5"
+             style="flex:1; min-width:200px; padding:10px 14px; border:1px solid #ccc; border-radius:6px; font-size:0.95rem; font-family:monospace;">
+      <button class="btn btn-primary" onclick="parseSalesBulk()">解析・追加</button>
+      <button class="btn btn-gray"    onclick="document.getElementById('sales-bulk-input').value=''">クリア</button>
+    </div>
+
+    <!-- 個別追加 -->
+    <div class="section-title">個別追加</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>担当者名（省略可）</label>
+        <input type="text" id="sales-person-name" placeholder="例：田中" maxlength="30">
+      </div>
+      <div class="form-group" style="flex:0 0 auto; min-width:100px;">
+        <label>枚数</label>
+        <input type="number" id="sales-person-count" value="1" min="1" max="9999" style="width:100px;">
+      </div>
+      <div class="form-group" style="flex:0 0 auto; justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="addSalesEntry()">追加</button>
+      </div>
+    </div>
+
+    <!-- 明細テーブル -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+      <span class="section-title" style="margin:0;">売上明細</span>
+      <button class="btn btn-danger" style="font-size:0.78rem; padding:5px 12px;" onclick="clearAllSales()">明細をクリア</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="sales-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>担当者</th>
+            <th>枚数</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="sales-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- 集計カード -->
+    <div class="stats-grid" style="margin-top:24px;" id="sales-stats-grid"></div>
+
+    <!-- 確定合計 -->
+    <div style="background:#f9f9f9; border-radius:10px; padding:16px; margin-top:16px; border:1px solid #e0e0e0;">
+      <div class="section-title" style="margin-top:0; margin-bottom:10px;">✅ 確定合計枚数</div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="number" id="confirmed-total-input" placeholder="例：91" min="0" max="9999"
+               style="width:110px; padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:1.1rem; font-weight:bold; text-align:center;">
+        <button class="btn btn-success" onclick="saveConfirmedTotal()">確定保存</button>
+        <button class="btn btn-gray"    onclick="clearConfirmedTotal()">クリア</button>
+        <span id="confirmed-diff-msg" style="font-size:0.88rem; color:#555;"></span>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <script>
@@ -759,6 +832,8 @@ function loadData() {
       if (raw.participants) {
         raw.participants = raw.participants.map(p => ({ type: 'player', ...p }));
       }
+      if (!raw.salesEntries) raw.salesEntries = [];
+      if (raw.confirmedTotal === undefined) raw.confirmedTotal = null;
       return raw;
     }
     // v2キーからの移行
@@ -776,14 +851,14 @@ function saveData(d) {
   localStorage.setItem(LS_KEY, JSON.stringify(d));
 }
 function defaultData() {
-  return { participants: [], prizes: [], results: [], ticketCounter: 1 };
+  return { participants: [], prizes: [], results: [], ticketCounter: 1, salesEntries: [], confirmedTotal: null };
 }
 
 let data = loadData();
 let buyerFilter = 'all'; // 'all' | 'player' | 'buyer'
 
 // ========== タブ切り替え ==========
-const TAB_IDS = ['tab-dashboard','tab-participants','tab-prizes','tab-lottery','tab-results','tab-settings'];
+const TAB_IDS = ['tab-dashboard','tab-participants','tab-prizes','tab-lottery','tab-results','tab-sales','tab-settings'];
 
 function showTab(id) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -795,6 +870,7 @@ function showTab(id) {
   if (id === 'tab-prizes')       renderPrizes();
   if (id === 'tab-lottery')      renderLottery();
   if (id === 'tab-results')      renderResults();
+  if (id === 'tab-sales')        renderSales();
 }
 
 // ========== 購入者管理 ==========
@@ -1287,6 +1363,169 @@ function esc(s) {
   return String(s || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ========== 売上サマリー ==========
+function renderSales() {
+  renderSalesTable();
+  renderSalesStats();
+  const confirmed = data.confirmedTotal;
+  const input = document.getElementById('confirmed-total-input');
+  if (confirmed !== null && confirmed !== undefined) {
+    input.value = confirmed;
+  } else {
+    input.value = '';
+  }
+  updateConfirmedDiffMsg();
+}
+
+function renderSalesTable() {
+  const tbody = document.getElementById('sales-tbody');
+  const entries = data.salesEntries || [];
+  if (!entries.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">売上データがありません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map((e, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${e.name ? esc(e.name) : '<span style="color:#aaa;">（担当者未記入）</span>'}</td>
+      <td><strong>${e.count}</strong> 枚</td>
+      <td><button class="btn btn-danger" style="padding:3px 10px;font-size:0.78rem;" onclick="removeSalesEntry('${e.id}')">削除</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderSalesStats() {
+  const entries = data.salesEntries || [];
+  const inputTotal = entries.reduce((s, e) => s + e.count, 0);
+  const confirmed = data.confirmedTotal;
+  const diff = (confirmed !== null && confirmed !== undefined) ? inputTotal - confirmed : null;
+
+  let diffCard = '';
+  if (diff !== null) {
+    const color = diff === 0
+      ? 'linear-gradient(135deg,#27ae60,#1e8449)'
+      : 'linear-gradient(135deg,#e67e22,#ca6f1e)';
+    diffCard = `<div class="stat-card" style="background:${color};">
+      <div class="num">${diff > 0 ? '+' : ''}${diff}</div>
+      <div class="lbl">確定との差異</div>
+    </div>`;
+  }
+
+  let confirmedCard = '';
+  if (confirmed !== null && confirmed !== undefined) {
+    confirmedCard = `<div class="stat-card" style="background:linear-gradient(135deg,#2980b9,#1a5276);">
+      <div class="num">${confirmed}</div>
+      <div class="lbl">確定合計枚数</div>
+    </div>`;
+  }
+
+  document.getElementById('sales-stats-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="num">${inputTotal}</div>
+      <div class="lbl">入力合計枚数</div>
+    </div>
+    <div class="stat-card light">
+      <div class="num">${entries.length}</div>
+      <div class="lbl">行数</div>
+    </div>
+    ${confirmedCard}
+    ${diffCard}
+  `;
+}
+
+function updateConfirmedDiffMsg() {
+  const msg = document.getElementById('confirmed-diff-msg');
+  if (!msg) return;
+  const inputTotal = (data.salesEntries || []).reduce((s, e) => s + e.count, 0);
+  const confirmed = data.confirmedTotal;
+  if (confirmed === null || confirmed === undefined) { msg.textContent = ''; return; }
+  const diff = inputTotal - confirmed;
+  if (diff === 0) {
+    msg.textContent = '✓ 入力合計と一致しています';
+    msg.style.color = '#27ae60';
+  } else {
+    msg.textContent = `差異 ${diff > 0 ? '+' : ''}${diff}枚（入力${inputTotal}枚 vs 確定${confirmed}枚）`;
+    msg.style.color = '#e67e22';
+  }
+}
+
+function parseSalesBulk() {
+  const raw = document.getElementById('sales-bulk-input').value.trim();
+  if (!raw) return;
+
+  // "@All" などの前置きテキストを除去
+  const cleaned = raw.replace(/^@\S+\s*/, '').trim();
+  const parts = cleaned.split('+').map(s => s.trim()).filter(Boolean);
+
+  const entries = [];
+  for (const part of parts) {
+    // 名前(数字) パターン
+    const m1 = part.match(/^(.+?)\((\d+)\)$/);
+    if (m1) { entries.push({ id: Date.now() + Math.random(), name: m1[1].trim(), count: parseInt(m1[2]) }); continue; }
+    // 数字のみ
+    const m2 = part.match(/^(\d+)$/);
+    if (m2) { entries.push({ id: Date.now() + Math.random(), name: '', count: parseInt(m2[1]) }); continue; }
+    // 名前+末尾数字（例：ニョメン5）
+    const m3 = part.match(/^(.+?)(\d+)$/);
+    if (m3) { entries.push({ id: Date.now() + Math.random(), name: m3[1].trim(), count: parseInt(m3[2]) }); continue; }
+    // 数字なし→1枚として登録
+    entries.push({ id: Date.now() + Math.random(), name: part, count: 1 });
+  }
+
+  if (!entries.length) { alert('解析できるデータがありませんでした。'); return; }
+
+  if (!data.salesEntries) data.salesEntries = [];
+  data.salesEntries.push(...entries);
+  saveData(data);
+  renderSales();
+  document.getElementById('sales-bulk-input').value = '';
+}
+
+function addSalesEntry() {
+  const name  = document.getElementById('sales-person-name').value.trim();
+  const count = parseInt(document.getElementById('sales-person-count').value) || 0;
+  if (count <= 0) { alert('枚数を1以上で入力してください。'); return; }
+
+  if (!data.salesEntries) data.salesEntries = [];
+  data.salesEntries.push({ id: Date.now() + Math.random(), name, count });
+  saveData(data);
+  renderSales();
+
+  document.getElementById('sales-person-name').value = '';
+  document.getElementById('sales-person-count').value = '1';
+  document.getElementById('sales-person-name').focus();
+}
+
+function removeSalesEntry(id) {
+  data.salesEntries = (data.salesEntries || []).filter(e => String(e.id) !== String(id));
+  saveData(data);
+  renderSales();
+}
+
+function clearAllSales() {
+  if (!confirm('売上明細をすべて削除しますか？')) return;
+  data.salesEntries = [];
+  saveData(data);
+  renderSales();
+}
+
+function saveConfirmedTotal() {
+  const val = parseInt(document.getElementById('confirmed-total-input').value);
+  if (isNaN(val) || val < 0) { alert('有効な数値を入力してください。'); return; }
+  data.confirmedTotal = val;
+  saveData(data);
+  renderSalesStats();
+  updateConfirmedDiffMsg();
+}
+
+function clearConfirmedTotal() {
+  data.confirmedTotal = null;
+  document.getElementById('confirmed-total-input').value = '';
+  document.getElementById('confirmed-diff-msg').textContent = '';
+  saveData(data);
+  renderSalesStats();
 }
 
 // ========== 初期化 ==========
